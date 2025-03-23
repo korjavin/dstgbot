@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o dstgbot .
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/dstgbot .
-COPY --from=builder /app/.env .
+
 
 
 EXPOSE 8080
