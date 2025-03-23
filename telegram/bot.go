@@ -36,6 +36,8 @@ func NewBot(token string, groupID string, cache *cache.MessageCache) (*Bot, erro
 		return nil, err
 	}
 
+	log.Printf("Bot username: %s", self.UserName)
+
 	return &Bot{
 		api:     botAPI,
 		groupID: gid,
@@ -50,8 +52,11 @@ func (b *Bot) Start(deepseekClient *api.Client) error {
 
 	updates := b.api.GetUpdatesChan(u)
 
+	log.Println("Bot started listening for messages.")
+
 	for update := range updates {
 		if update.Message != nil && update.Message.Chat.ID == b.groupID {
+			log.Printf("Received message from chat ID %d", update.Message.Chat.ID)
 			if err := b.handleMessage(update.Message, deepseekClient); err != nil {
 				log.Printf("Error handling message: %v", err)
 			}
@@ -62,6 +67,8 @@ func (b *Bot) Start(deepseekClient *api.Client) error {
 }
 
 func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
+	log.Printf("Handling message ID %d from %s: %s", msg.MessageID, msg.From.UserName, msg.Text)
+
 	// Store message in cache
 	replyToID := 0
 	if msg.ReplyToMessage != nil {
@@ -74,9 +81,11 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 		ReplyToID: replyToID,
 		Timestamp: msg.Time(),
 	})
+	log.Printf("Added message %d to cache. ReplyToID: %d", msg.MessageID, replyToID)
 
 	// Check if message is for the bot
 	if !b.isMessageForBot(msg) {
+		log.Println("Message is not for the bot, ignoring.")
 		return nil
 	}
 
@@ -85,37 +94,55 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 		reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, I only support text messages for now.")
 		reply.ReplyToMessageID = msg.MessageID
 		_, err := b.api.Send(reply)
-		return err
+		if err != nil {
+			log.Printf("Error sending message: %v", err)
+			return err
+		}
+		return nil
 	}
 
 	// Get conversation context
 	messages := b.getConversationContext(msg)
+	log.Printf("Conversation context: %v", messages)
 
 	// Get response from DeepSeek
+	log.Println("Sending request to DeepSeek API...")
 	response, err := client.CreateChatCompletion(context.Background(), messages)
 	if err != nil {
 		log.Printf("DeepSeek API error: %v", err)
 		reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, I'm having trouble processing your request. Please try again later.")
 		reply.ReplyToMessageID = msg.MessageID
 		_, err := b.api.Send(reply)
+		if err != nil {
+			log.Printf("Error sending message: %v", err)
+			return err
+		}
 		return err
 	}
+	log.Println("Received response from DeepSeek API.")
 
 	// Send response
 	reply := tgbotapi.NewMessage(msg.Chat.ID, response)
 	reply.ReplyToMessageID = msg.MessageID
 	_, err = b.api.Send(reply)
+	if err != nil {
+		log.Printf("Error sending message: %v", err)
+		return err
+	}
+	log.Printf("Sent message to Telegram: %s", response)
 	return err
 }
 
 func (b *Bot) isMessageForBot(msg *tgbotapi.Message) bool {
 	// Check if message is a reply to the bot
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From.UserName == b.botName {
+		log.Println("Message is a reply to the bot.")
 		return true
 	}
 
 	// Check if message mentions the bot
 	if strings.Contains(strings.ToLower(msg.Text), "@"+strings.ToLower(b.botName)) {
+		log.Println("Message mentions the bot.")
 		return true
 	}
 
@@ -135,6 +162,7 @@ func (b *Bot) getConversationContext(msg *tgbotapi.Message) []api.Message {
 
 	// Get message thread from cache
 	cachedMessages := b.cache.GetThread(msg.MessageID)
+	log.Printf("Getting thread for message ID %d from cache. Found %d messages.", msg.MessageID, len(cachedMessages))
 	for _, cachedMsg := range cachedMessages {
 		role := "user"
 		if cachedMsg.ID == msg.MessageID && msg.From.UserName == b.botName {

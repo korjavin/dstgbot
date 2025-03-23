@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -58,6 +59,8 @@ func (c *Client) CreateChatCompletion(ctx context.Context, messages []Message) (
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
+	log.Printf("Sending DeepSeek API request: %s", string(jsonData))
+
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
@@ -86,6 +89,8 @@ func (c *Client) CreateChatCompletion(ctx context.Context, messages []Message) (
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
+
+	log.Printf("Received DeepSeek API response: %v", response)
 
 	if len(response.Choices) == 0 {
 		return "", errors.New("no choices in response")
