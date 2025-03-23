@@ -151,6 +151,7 @@ func (b *Bot) isMessageForBot(msg *tgbotapi.Message) bool {
 
 func (b *Bot) getConversationContext(msg *tgbotapi.Message) []api.Message {
 	var messages []api.Message
+	messageThread := b.getMessageThread(msg.MessageID, 10)
 
 	// Add system message if available
 	if systemMsg := os.Getenv("SYSTEM_MSG"); systemMsg != "" {
@@ -160,10 +161,8 @@ func (b *Bot) getConversationContext(msg *tgbotapi.Message) []api.Message {
 		})
 	}
 
-	// Get message thread from cache
-	cachedMessages := b.cache.GetThread(msg.MessageID)
-	log.Printf("Getting thread for message ID %d from cache. Found %d messages.", msg.MessageID, len(cachedMessages))
-	for _, cachedMsg := range cachedMessages {
+	// Add message thread to context
+	for _, cachedMsg := range messageThread {
 		role := "user"
 		if cachedMsg.ID == msg.MessageID && msg.From.UserName == b.botName {
 			role = "assistant"
@@ -175,4 +174,28 @@ func (b *Bot) getConversationContext(msg *tgbotapi.Message) []api.Message {
 	}
 
 	return messages
+}
+
+func (b *Bot) getMessageThread(messageID int, limit int) []cache.Message {
+	var thread []cache.Message
+	currentID := messageID
+	count := 0
+
+	for count < limit {
+		msg, found := b.cache.GetByID(currentID)
+		if !found {
+			break
+		}
+		thread = append(thread, msg)
+		currentID = msg.ReplyToID
+		count++
+	}
+
+	// Reverse to maintain chronological order
+	for i, j := 0, len(thread)-1; i < j; i, j = i+1, j-1 {
+		thread[i], thread[j] = thread[j], thread[i]
+	}
+
+	log.Printf("Getting thread for message ID %d from cache. Found %d messages.", messageID, len(thread))
+	return thread
 }

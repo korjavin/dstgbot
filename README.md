@@ -5,7 +5,7 @@ A Telegram bot that uses DeepSeek API to generate responses in group chats.
 ## Features
 
 - Responds to mentions and replies
-- Maintains conversation context
+- Maintains conversation context (up to 10 messages)
 - Handles text messages only (images/audio not supported)
 - Retries failed API calls
 - In-memory message caching for context
