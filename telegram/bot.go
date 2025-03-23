@@ -93,11 +93,18 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 	if msg.Photo != nil || msg.Voice != nil || msg.Audio != nil {
 		reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, I only support text messages for now.")
 		reply.ReplyToMessageID = msg.MessageID
-		_, err := b.api.Send(reply)
+		sentMsg, err := b.api.Send(reply)
 		if err != nil {
 			log.Printf("Error sending message: %v", err)
 			return err
 		}
+		// Store bot's message to cache
+		b.cache.Add(cache.Message{
+			ID:        sentMsg.MessageID,
+			Text:      reply.Text,
+			ReplyToID: msg.MessageID,
+			Timestamp: sentMsg.Time(),
+		})
 		return nil
 	}
 
@@ -112,11 +119,18 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 		log.Printf("DeepSeek API error: %v", err)
 		reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, I'm having trouble processing your request. Please try again later.")
 		reply.ReplyToMessageID = msg.MessageID
-		_, err := b.api.Send(reply)
+		sentMsg, err := b.api.Send(reply)
 		if err != nil {
 			log.Printf("Error sending message: %v", err)
 			return err
 		}
+		// Store bot's message to cache
+		b.cache.Add(cache.Message{
+			ID:        sentMsg.MessageID,
+			Text:      reply.Text,
+			ReplyToID: msg.MessageID,
+			Timestamp: sentMsg.Time(),
+		})
 		return err
 	}
 	log.Println("Received response from DeepSeek API.")
@@ -124,12 +138,20 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 	// Send response
 	reply := tgbotapi.NewMessage(msg.Chat.ID, response)
 	reply.ReplyToMessageID = msg.MessageID
-	_, err = b.api.Send(reply)
+	sentMsg, err := b.api.Send(reply)
 	if err != nil {
 		log.Printf("Error sending message: %v", err)
 		return err
 	}
 	log.Printf("Sent message to Telegram: %s", response)
+
+	// Store bot's message to cache
+	b.cache.Add(cache.Message{
+		ID:        sentMsg.MessageID,
+		Text:      response,
+		ReplyToID: msg.MessageID,
+		Timestamp: sentMsg.Time(),
+	})
 	return err
 }
 
@@ -164,8 +186,13 @@ func (b *Bot) getConversationContext(msg *tgbotapi.Message) []api.Message {
 	// Add message thread to context
 	for _, cachedMsg := range messageThread {
 		role := "user"
-		if cachedMsg.ID == msg.MessageID && msg.From.UserName == b.botName {
-			role = "assistant"
+		//if cachedMsg.ID == msg.MessageID && msg.From.UserName == b.botName {
+		//	role = "assistant"
+		//}
+		if cachedMsg.ID == msg.MessageID {
+			if msg.From.UserName == b.botName {
+				role = "assistant"
+			}
 		}
 		messages = append(messages, api.Message{
 			Role:    role,
