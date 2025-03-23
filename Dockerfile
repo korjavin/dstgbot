@@ -11,11 +11,6 @@ WORKDIR /app
 COPY --from=builder /app/dstgbot .
 COPY --from=builder /app/.env .
 
-# Environment variables
-ENV TELEGRAM_BOT_TOKEN=""
-ENV DEEPSEEK_APIKEY=""
-ENV TG_GROUP_ID=""
-ENV SYSTEM_MSG=""
 
 EXPOSE 8080
 CMD ["./dstgbot"]
