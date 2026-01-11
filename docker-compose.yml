@@ -1,0 +1,22 @@
+services:
+  ${APP_NAME}:
+    build: .
+    restart: unless-stopped
+    container_name: dstgbot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - DEEPSEEK_APIKEY=${DEEPSEEK_APIKEY}
+      - TG_GROUP_ID=${TG_GROUP_ID}
+      - SYSTEM_MSG=${SYSTEM_MSG}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${APP_NAME}.rule=Host(`${DOMAIN_NAME`)"
+      - "traefik.http.routers.${APP_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME}.tls.certresolver=myresolver"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: ${NETWORK_NAME}
+    external: true
