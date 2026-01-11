@@ -3,9 +3,11 @@ package telegram
 import (
 	"context"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/korjavin/dstgbot/api"
@@ -59,9 +61,11 @@ func (b *Bot) Start(deepseekClient *api.Client) error {
 			log.Printf("Received message from chat ID %d (Type: %s): %s", update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
 
 			if update.Message.Chat.ID == b.groupID || update.Message.Chat.Type == "private" {
-				if err := b.handleMessage(update.Message, deepseekClient); err != nil {
-					log.Printf("Error handling message: %v", err)
-				}
+				go func(msg *tgbotapi.Message) {
+					if err := b.handleMessage(msg, deepseekClient); err != nil {
+						log.Printf("Error handling message: %v", err)
+					}
+				}(update.Message)
 			} else {
 				log.Printf("Ignoring message from chat ID %d (expected %d)", update.Message.Chat.ID, b.groupID)
 			}
@@ -73,6 +77,11 @@ func (b *Bot) Start(deepseekClient *api.Client) error {
 
 func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 	log.Printf("Handling message ID %d from %s: %s", msg.MessageID, msg.From.UserName, msg.Text)
+
+	// Random delay between 5-15 seconds
+	delay := time.Duration(rand.Intn(11)+5) * time.Second
+	log.Printf("Sleeping for %v before processing...", delay)
+	time.Sleep(delay)
 
 	// Store message in cache
 	replyToID := 0
