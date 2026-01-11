@@ -55,10 +55,15 @@ func (b *Bot) Start(deepseekClient *api.Client) error {
 	log.Println("Bot started listening for messages.")
 
 	for update := range updates {
-		if update.Message != nil && update.Message.Chat.ID == b.groupID {
-			log.Printf("Received message from chat ID %d", update.Message.Chat.ID)
-			if err := b.handleMessage(update.Message, deepseekClient); err != nil {
-				log.Printf("Error handling message: %v", err)
+		if update.Message != nil {
+			log.Printf("Received message from chat ID %d (Type: %s): %s", update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
+
+			if update.Message.Chat.ID == b.groupID || update.Message.Chat.Type == "private" {
+				if err := b.handleMessage(update.Message, deepseekClient); err != nil {
+					log.Printf("Error handling message: %v", err)
+				}
+			} else {
+				log.Printf("Ignoring message from chat ID %d (expected %d)", update.Message.Chat.ID, b.groupID)
 			}
 		}
 	}
