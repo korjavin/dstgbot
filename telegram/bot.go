@@ -93,25 +93,26 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 		log.Println("Message is not for the bot, ignoring.")
 		return nil
 	}
-
-	// Handle unsupported message types
-	if msg.Photo != nil || msg.Voice != nil || msg.Audio != nil {
-		reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, I only support text messages for now.")
-		reply.ReplyToMessageID = msg.MessageID
-		sentMsg, err := b.api.Send(reply)
-		if err != nil {
-			log.Printf("Error sending message: %v", err)
-			return err
+	/*
+		// Handle unsupported message types
+		if msg.Photo != nil || msg.Voice != nil || msg.Audio != nil {
+			reply := tgbotapi.NewMessage(msg.Chat.ID, "Sorry, I only support text messages for now.")
+			reply.ReplyToMessageID = msg.MessageID
+			sentMsg, err := b.api.Send(reply)
+			if err != nil {
+				log.Printf("Error sending message: %v", err)
+				return err
+			}
+			// Store bot's message to cache
+			b.cache.Add(cache.Message{
+				ID:        sentMsg.MessageID,
+				Text:      reply.Text,
+				ReplyToID: msg.MessageID,
+				Timestamp: sentMsg.Time(),
+			})
+			return nil
 		}
-		// Store bot's message to cache
-		b.cache.Add(cache.Message{
-			ID:        sentMsg.MessageID,
-			Text:      reply.Text,
-			ReplyToID: msg.MessageID,
-			Timestamp: sentMsg.Time(),
-		})
-		return nil
-	}
+	*/
 
 	// Get conversation context
 	messages := b.getConversationContext(msg)
@@ -161,15 +162,30 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message, client *api.Client) error {
 }
 
 func (b *Bot) isMessageForBot(msg *tgbotapi.Message) bool {
+	// Private DM: Always for the bot
+	if msg.Chat.Type == "private" {
+		log.Println("Message is a private DM.")
+		return true
+	}
+
 	// Check if message is a reply to the bot
 	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From.UserName == b.botName {
 		log.Println("Message is a reply to the bot.")
 		return true
 	}
 
-	// Check if message mentions the bot
-	if strings.Contains(strings.ToLower(msg.Text), "@"+strings.ToLower(b.botName)) {
-		log.Println("Message mentions the bot.")
+	text := strings.ToLower(msg.Text)
+	botName := strings.ToLower(b.botName)
+
+	// Check if message mentions the bot (with or without @)
+	if strings.Contains(text, botName) {
+		log.Println("Message mentions the bot name.")
+		return true
+	}
+
+	// Check if message mentions "Titania"
+	if strings.Contains(text, "titania") {
+		log.Println("Message mentions Titania.")
 		return true
 	}
 
