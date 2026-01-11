@@ -1,18 +1,13 @@
 services:
-  ${APP_NAME}:
-    build: .
+  dstgbot:
+    image: ghcr.io/korjavin/dstgbot:latest
     restart: unless-stopped
-    container_name: dstgbot
+    container_name: ${APP_NAME:-dstgbot}
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - DEEPSEEK_APIKEY=${DEEPSEEK_APIKEY}
       - TG_GROUP_ID=${TG_GROUP_ID}
       - SYSTEM_MSG=${SYSTEM_MSG}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.${APP_NAME}.rule=Host(`${DOMAIN_NAME`)"
-      - "traefik.http.routers.${APP_NAME}.entrypoints=websecure"
-      - "traefik.http.routers.${APP_NAME}.tls.certresolver=myresolver"
     networks:
       - proxy
 
